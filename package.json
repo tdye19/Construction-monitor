@@ -1,0 +1,14 @@
+{
+  "name": "construction-monitor",
+  "version": "0.1.0",
+  "description": "Real-time construction market intelligence dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.0.0",
+    "typescript": "^5.4.0"
+  }
+}
