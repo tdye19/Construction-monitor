@@ -1008,33 +1008,33 @@
     <div class="data-strip">
       <div class="data-cell">
         <div class="data-cell-label">PPI Constr. Inputs</div>
-        <div class="data-cell-value">348.2</div>
-        <div class="data-cell-change change-up">▲ +3.1% YoY</div>
+        <div class="data-cell-value" id="ds-ppi-inputs">348.2</div>
+        <div class="data-cell-change change-up" id="ds-ppi-inputs-chg">▲ +3.1% YoY</div>
       </div>
       <div class="data-cell">
         <div class="data-cell-label">Steel Mill Products</div>
-        <div class="data-cell-value">218.4</div>
-        <div class="data-cell-change change-up">▲ +7.8% MoM</div>
+        <div class="data-cell-value" id="ds-ppi-steel">218.4</div>
+        <div class="data-cell-change change-up" id="ds-ppi-steel-chg">▲ +7.8% YoY</div>
       </div>
       <div class="data-cell">
         <div class="data-cell-label">Ready-Mix Concrete</div>
-        <div class="data-cell-value">392.1</div>
-        <div class="data-cell-change change-up">▲ +3.2% MoM</div>
+        <div class="data-cell-value" id="ds-ppi-concrete">392.1</div>
+        <div class="data-cell-change change-up" id="ds-ppi-concrete-chg">▲ +3.2% YoY</div>
       </div>
       <div class="data-cell">
         <div class="data-cell-label">Constr. Employment</div>
-        <div class="data-cell-value">8.14M</div>
-        <div class="data-cell-change change-down">▼ −24k MoM</div>
+        <div class="data-cell-value" id="ds-employment">8.14M</div>
+        <div class="data-cell-change change-down" id="ds-employment-chg">▼ −24k MoM</div>
       </div>
       <div class="data-cell">
         <div class="data-cell-label">Building Permits</div>
-        <div class="data-cell-value">1.483M</div>
-        <div class="data-cell-change change-up">▲ +2.8% MoM</div>
+        <div class="data-cell-value" id="ds-permits">1.483M</div>
+        <div class="data-cell-change change-up" id="ds-permits-chg">▲ +2.8% MoM</div>
       </div>
       <div class="data-cell">
         <div class="data-cell-label">Fed Funds Rate</div>
-        <div class="data-cell-value">4.38%</div>
-        <div class="data-cell-change change-neutral">— Unchanged</div>
+        <div class="data-cell-value" id="ds-fedfunds">4.38%</div>
+        <div class="data-cell-change change-neutral" id="ds-fedfunds-chg">— Unchanged</div>
       </div>
     </div>
   </div>
@@ -1048,148 +1048,154 @@
 
 <script>
 // ============================================================
-// DEMO DATA — Replace with live Edge Function calls
+// Construction Monitor Dashboard — Live Data Edition
+//
+// Data flow:
+//   1. loadLiveData()  →  GET /api/mpi-scores
+//   2. /api/mpi-scores calls BLS + FRED + Census → calculateMPI()
+//   3. Response populates MPI_DATA and data strip
+//   4. Dashboard re-renders with live scores
+//   5. Auto-refresh every 5 minutes
+//
+// Fallback: DEMO_DATA is used when the API is unreachable or
+//   during local development without server-side functions.
 // ============================================================
 
-const MPI_DATA = [
+// ---- Static fallback demo data (used when API unavailable) ----
+const DEMO_DATA = [
   {
     id: 'phoenix',    name: 'Phoenix', state: 'AZ', score: 82,
     tier: 'critical', trend: 'rising', delta: 7,
-    mapX: 18, mapY: 62,
-    alerts: 3,
-    components: {
-      materials: 78, labor: 85, backlog: 92, supply: 71, distress: 42
-    },
+    mapX: 18, mapY: 62, alerts: 3,
+    components: { materials: 78, labor: 85, backlog: 92, supply: 71, distress: 42 },
     topAlert: {
       title: '🔴 CONVERGENCE: Phoenix — 4 signal categories elevated',
-      body: 'Permit values +31% YoY + labor shortage critical + PPI inputs +4.2% + mega project surge (3 projects >$200M announced). Structural concrete estimates need 12–15% escalation buffer.',
-      severity: 'critical',
-      tags: ['materials', 'labor', 'backlog', 'supply-chain'],
+      body: 'Permit values +31% YoY + labor shortage critical + PPI inputs +4.2% + mega project surge. Structural concrete estimates need 12–15% escalation buffer.',
+      severity: 'critical', tags: ['materials', 'labor', 'backlog', 'supply_chain'],
       impact: '+10–15% on structural trades'
     },
     rec: 'Critical market. Get updated sub quotes. Do not use historical unit prices. Consider escalation clauses in your proposal.'
   },
   {
-    id: 'nashville',  name: 'Nashville', state: 'TN', score: 74,
+    id: 'nashville', name: 'Nashville', state: 'TN', score: 74,
     tier: 'elevated', trend: 'rising', delta: 4,
-    mapX: 58, mapY: 55,
-    alerts: 2,
-    components: {
-      materials: 70, labor: 78, backlog: 80, supply: 58, distress: 32
-    },
+    mapX: 58, mapY: 55, alerts: 2,
+    components: { materials: 70, labor: 78, backlog: 80, supply: 58, distress: 32 },
     topAlert: {
       title: '🟠 CONVERGENCE: Nashville — Labor + backlog pressure elevated',
-      body: 'Trade unemployment 3.1% (vs 4.8% national) + permit values +22% YoY. Sub backlog saturated — 6-8 week lead for new bids.',
-      severity: 'high',
-      tags: ['labor', 'backlog'],
+      body: 'Trade unemployment 3.1% (vs 4.8% national) + permit values +22% YoY. Sub backlog saturated.',
+      severity: 'high', tags: ['labor', 'project_activity'],
       impact: '+7–10% on labor-heavy trades'
     },
     rec: 'Elevated pressure. Budget 8–12% escalation. Confirm sub pricing before locking structural numbers.'
   },
   {
-    id: 'seattle',    name: 'Seattle', state: 'WA', score: 71,
+    id: 'seattle', name: 'Seattle', state: 'WA', score: 71,
     tier: 'elevated', trend: 'stable', delta: 1,
-    mapX: 8, mapY: 22,
-    alerts: 1,
-    components: {
-      materials: 72, labor: 76, backlog: 65, supply: 62, distress: 28
-    },
+    mapX: 8, mapY: 22, alerts: 1,
+    components: { materials: 72, labor: 76, backlog: 65, supply: 62, distress: 28 },
     topAlert: {
       title: '🟠 ELEVATED: Seattle — Structural materials costs trending up',
-      body: 'Regional steel premium 8% above national average. PPI inputs +3.8% YoY. Labor market tight (3.4% trade unemployment).',
-      severity: 'high',
-      tags: ['materials', 'labor'],
+      body: 'Regional steel premium 8% above national average. PPI inputs +3.8% YoY. Labor market tight.',
+      severity: 'high', tags: ['materials', 'labor'],
       impact: '+6–9% on structural steel'
     },
     rec: 'Elevated. Budget 8–10% escalation for structural trades. Early steel procurement recommended.'
   },
   {
-    id: 'dallas',     name: 'Dallas', state: 'TX', score: 62,
+    id: 'dallas', name: 'Dallas', state: 'TX', score: 62,
     tier: 'elevated', trend: 'falling', delta: -3,
-    mapX: 38, mapY: 68,
-    alerts: 1,
-    components: {
-      materials: 60, labor: 65, backlog: 72, supply: 45, distress: 38
-    },
+    mapX: 38, mapY: 68, alerts: 1,
+    components: { materials: 60, labor: 65, backlog: 72, supply: 45, distress: 38 },
     topAlert: {
       title: '🟡 WATCH: Dallas — Backlog density elevated',
       body: 'Construction spending +18% YoY. Sub capacity tight for MEP and concrete. Materials stabilizing.',
-      severity: 'medium',
-      tags: ['backlog'],
+      severity: 'medium', tags: ['project_activity'],
       impact: '+4–6% on MEP trades'
     },
     rec: 'Moderately elevated. Conditions improving. Budget 6–8% escalation; MEP subs are stretched.'
   },
   {
-    id: 'detroit',    name: 'Detroit', state: 'MI', score: 48,
-    tier: 'moderate', trend: 'rising', delta: 5,
-    mapX: 66, mapY: 30,
-    alerts: 1,
-    components: {
-      materials: 58, labor: 44, backlog: 38, supply: 42, distress: 22
-    },
-    topAlert: {
-      title: '🟡 WATCH: Detroit — Steel tariff impact + CBA expiry converging',
-      body: 'Ironworker Local 25 CBA expires in 34 days. Steel PPI +7.8% MoM from tariff announcement. Monitor closely.',
-      severity: 'medium',
-      tags: ['materials', 'labor'],
-      impact: '+3–5% on structural steel & concrete'
-    },
-    rec: 'Moderate pressure, rising. Get ironworker sub quotes confirmed before CBA expiry. Watch steel for 60 days.'
-  },
-  {
-    id: 'chicago',    name: 'Chicago', state: 'IL', score: 55,
+    id: 'chicago', name: 'Chicago', state: 'IL', score: 55,
     tier: 'moderate', trend: 'rising', delta: 3,
-    mapX: 60, mapY: 32,
-    alerts: 1,
-    components: {
-      materials: 62, labor: 55, backlog: 50, supply: 44, distress: 28
-    },
+    mapX: 60, mapY: 32, alerts: 1,
+    components: { materials: 62, labor: 55, backlog: 50, supply: 44, distress: 28 },
     topAlert: {
       title: '🟡 WATCH: Chicago — Labor CBA + tariff convergence forming',
       body: 'Multiple CBA expirations in Q2. Steel tariff impact beginning to show in regional quotes.',
-      severity: 'medium',
-      tags: ['materials', 'labor'],
+      severity: 'medium', tags: ['materials', 'labor'],
       impact: '+4–6% on structural trades'
     },
     rec: 'Moderate pressure. Watch Q2 CBA expirations. Budget 5–7% escalation buffer for projects starting Q3.'
   },
   {
-    id: 'columbus',   name: 'Columbus', state: 'OH', score: 38,
-    tier: 'moderate', trend: 'stable', delta: 0,
-    mapX: 64, mapY: 38,
-    alerts: 0,
-    components: {
-      materials: 42, labor: 36, backlog: 40, supply: 32, distress: 18
+    id: 'detroit', name: 'Detroit', state: 'MI', score: 48,
+    tier: 'moderate', trend: 'rising', delta: 5,
+    mapX: 66, mapY: 30, alerts: 1,
+    components: { materials: 58, labor: 44, backlog: 38, supply: 42, distress: 22 },
+    topAlert: {
+      title: '🟡 WATCH: Detroit — Steel tariff impact + CBA expiry converging',
+      body: 'Ironworker Local 25 CBA expires in 34 days. Steel PPI +7.8% from tariff announcement. Monitor closely.',
+      severity: 'medium', tags: ['materials', 'labor'],
+      impact: '+3–5% on structural steel & concrete'
     },
+    rec: 'Moderate pressure, rising. Get ironworker sub quotes confirmed before CBA expiry. Watch steel for 60 days.'
+  },
+  {
+    id: 'houston', name: 'Houston', state: 'TX', score: 45,
+    tier: 'moderate', trend: 'stable', delta: 0,
+    mapX: 42, mapY: 72, alerts: 0,
+    components: { materials: 50, labor: 42, backlog: 48, supply: 38, distress: 20 },
+    topAlert: null,
+    rec: 'Moderate. Market active. Confirm sub availability on structural trades before finalizing bid numbers.'
+  },
+  {
+    id: 'denver', name: 'Denver', state: 'CO', score: 42,
+    tier: 'moderate', trend: 'stable', delta: -1,
+    mapX: 30, mapY: 52, alerts: 0,
+    components: { materials: 48, labor: 40, backlog: 44, supply: 35, distress: 18 },
+    topAlert: null,
+    rec: 'Moderate. Standard escalation assumptions apply. Sub pricing competitive across most trades.'
+  },
+  {
+    id: 'atlanta', name: 'Atlanta', state: 'GA', score: 40,
+    tier: 'moderate', trend: 'stable', delta: 1,
+    mapX: 62, mapY: 62, alerts: 0,
+    components: { materials: 46, labor: 38, backlog: 42, supply: 32, distress: 16 },
+    topAlert: null,
+    rec: 'Moderate. Active but manageable market. Review specialty trade availability for Q3 starts.'
+  },
+  {
+    id: 'columbus', name: 'Columbus', state: 'OH', score: 38,
+    tier: 'moderate', trend: 'stable', delta: 0,
+    mapX: 64, mapY: 38, alerts: 0,
+    components: { materials: 42, labor: 36, backlog: 40, supply: 32, distress: 18 },
     topAlert: null,
     rec: 'Moderate. Stable conditions. Standard escalation assumptions appropriate. Sub market competitive.'
   },
   {
-    id: 'indianapolis',name: 'Indianapolis', state: 'IN', score: 32,
+    id: 'indianapolis', name: 'Indianapolis', state: 'IN', score: 32,
     tier: 'moderate', trend: 'stable', delta: -1,
-    mapX: 62, mapY: 40,
-    alerts: 0,
-    components: {
-      materials: 38, labor: 30, backlog: 32, supply: 28, distress: 20
-    },
+    mapX: 62, mapY: 40, alerts: 0,
+    components: { materials: 38, labor: 30, backlog: 32, supply: 28, distress: 20 },
     topAlert: null,
     rec: 'Moderate, slightly improving. Competitive bid market. Standard escalation.'
   },
   {
-    id: 'grand-rapids',name: 'Grand Rapids', state: 'MI', score: 28,
+    id: 'grand-rapids', name: 'Grand Rapids', state: 'MI', score: 28,
     tier: 'favorable', trend: 'stable', delta: 2,
-    mapX: 63, mapY: 28,
-    alerts: 0,
-    components: {
-      materials: 30, labor: 26, backlog: 28, supply: 24, distress: 15
-    },
+    mapX: 63, mapY: 28, alerts: 0,
+    components: { materials: 30, labor: 26, backlog: 28, supply: 24, distress: 15 },
     topAlert: null,
     rec: 'Favorable market. Competitive sub pricing. 3–5% escalation contingency appropriate.'
   },
 ];
 
-let selectedId = 'phoenix';
+// ---- Live data state ----
+let MPI_DATA = [...DEMO_DATA];
+let selectedId = MPI_DATA[0]?.id || 'phoenix';
+let isLiveData = false;
+let liveSignals = [];
 
 // ---- Render MPI List ----
 function renderMPIList() {
@@ -1214,7 +1220,7 @@ function renderMPIList() {
       </div>
       <div class="mpi-card-bottom">
         <span class="mpi-trend ${m.trend}">
-          ${m.trend === 'rising' ? `▲ +${m.delta} pts` : m.trend === 'falling' ? `▼ ${m.delta} pts` : '— stable'}
+          ${m.trend === 'rising' ? `▲ +${Math.abs(m.delta)} pts` : m.trend === 'falling' ? `▼ ${Math.abs(m.delta)} pts` : '— stable'}
         </span>
         <span class="mpi-alert-count ${m.alerts > 0 ? 'visible' : ''}">
           ${m.alerts} alert${m.alerts !== 1 ? 's' : ''}
@@ -1227,8 +1233,6 @@ function renderMPIList() {
 // ---- Render Map Markers ----
 function renderMapMarkers() {
   const container = document.getElementById('map-markers');
-  const mapEl = document.getElementById('map');
-
   container.innerHTML = MPI_DATA.map(m => `
     <div class="map-marker ${m.tier}"
          style="left:${m.mapX}%; top:${m.mapY}%"
@@ -1248,17 +1252,17 @@ function renderDetail(id) {
 
   const tierClass = {
     favorable: 'tier-badge-favorable',
-    moderate: 'tier-badge-moderate',
-    elevated: 'tier-badge-elevated',
-    critical: 'tier-badge-critical',
-  }[m.tier];
+    moderate:  'tier-badge-moderate',
+    elevated:  'tier-badge-elevated',
+    critical:  'tier-badge-critical',
+  }[m.tier] || 'tier-badge-moderate';
 
   const componentLabels = {
     materials: 'Materials Cost Trend',
-    labor: 'Labor Availability',
-    backlog: 'Project Backlog Density',
-    supply: 'Supply Chain Stress',
-    distress: 'Financial Distress',
+    labor:     'Labor Availability',
+    backlog:   'Project Backlog Density',
+    supply:    'Supply Chain Stress',
+    distress:  'Financial Distress',
   };
 
   const componentWeights = {
@@ -1271,8 +1275,8 @@ function renderDetail(id) {
       <div class="component-row">
         <div class="component-header">
           <span class="component-name">
-            ${componentLabels[key]}
-            <span class="component-weight">${componentWeights[key]}</span>
+            ${componentLabels[key] || key}
+            <span class="component-weight">${componentWeights[key] || ''}</span>
           </span>
           <span class="component-score-text">${val}</span>
         </div>
@@ -1286,24 +1290,52 @@ function renderDetail(id) {
     <div class="alert-card ${m.topAlert.severity}">
       <div class="alert-card-title">${m.topAlert.title}</div>
       <div class="alert-card-meta">
-        ${m.topAlert.tags.map(t => `<span class="alert-tag">${t}</span>`).join('')}
+        ${(m.topAlert.tags || []).map(t => `<span class="alert-tag">${t.replace('_', ' ')}</span>`).join('')}
       </div>
       <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:6px;">${m.topAlert.body}</div>
       <div class="alert-impact">Est. cost impact: ${m.topAlert.impact}</div>
     </div>
   ` : '<div style="color:var(--text-muted);font-size:12px;padding:8px 0;">No active convergence alerts for this market.</div>';
 
-  const newsItems = [
-    { title: 'Steel tariff increase to 25% — structural estimates need review', source: 'ENR', severity: 'critical', time: '2h ago' },
-    { title: 'BLS: Construction employment down 24k in January', source: 'BLS', severity: 'medium', time: '6h ago' },
-    { title: 'Ready-mix concrete PPI +3.2% MoM, second consecutive increase', source: 'FRED', severity: 'high', time: '1d ago' },
-    { title: 'Phoenix building permits value +31% YoY — busiest market in US', source: 'Census', severity: 'high', time: '1d ago' },
-    { title: 'Fed holds rates at 4.25-4.50% — no cuts expected in Q2', source: 'Federal Reserve', severity: 'medium', time: '2d ago' },
-  ];
+  // Build signals section from live data or show static placeholders
+  const msaSignals = liveSignals.filter(s => s.msaId === id || s.msaId === 'national');
+  const signalsToShow = msaSignals.length > 0 ? msaSignals.slice(0, 6) : null;
+
+  const signalsHtml = signalsToShow
+    ? signalsToShow.map(s => `
+        <div class="news-item">
+          <div class="news-title">${s.title}</div>
+          <div class="news-meta">
+            <div class="news-severity-dot severity-${s.severity}"></div>
+            <span class="news-source">${s.source.split('—')[0].trim()}</span>
+            <span class="news-time">${isLiveData ? 'live' : 'demo'}</span>
+          </div>
+        </div>
+      `).join('')
+    : [
+        { title: 'Steel tariff increase to 25% — structural estimates need review', source: 'ENR', severity: 'critical', time: '2h ago' },
+        { title: 'BLS: Construction employment signal — see data strip', source: 'BLS', severity: 'medium', time: 'live' },
+        { title: 'Ready-mix concrete PPI — see data strip for current index', source: 'FRED', severity: 'high', time: 'live' },
+        { title: `${m.name} building permit activity — YoY trend in backlog score`, source: 'Census', severity: 'high', time: 'live' },
+        { title: 'Fed Funds Rate — see data strip for current rate environment', source: 'Federal Reserve', severity: 'medium', time: 'live' },
+      ].map(n => `
+        <div class="news-item">
+          <div class="news-title">${n.title}</div>
+          <div class="news-meta">
+            <div class="news-severity-dot severity-${n.severity}"></div>
+            <span class="news-source">${n.source}</span>
+            <span class="news-time">${n.time}</span>
+          </div>
+        </div>
+      `).join('');
+
+  const dataSourceBadge = isLiveData
+    ? `<span style="font-size:10px;color:var(--green-signal);font-family:var(--font-mono);margin-left:8px;">● LIVE</span>`
+    : `<span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono);margin-left:8px;">● DEMO</span>`;
 
   document.getElementById('right-panel').innerHTML = `
     <div class="mpi-detail">
-      <div class="detail-city">${m.name.toUpperCase()}, ${m.state}</div>
+      <div class="detail-city">${m.name.toUpperCase()}, ${m.state}${dataSourceBadge}</div>
       <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">Metropolitan Statistical Area</div>
       <div class="detail-score-row">
         <div class="detail-score-big" style="color:var(--mpi-${m.tier})">${m.score}</div>
@@ -1329,18 +1361,141 @@ function renderDetail(id) {
 
     <div class="news-section">
       <div class="panel-title" style="margin-bottom:10px">Recent Signals</div>
-      ${newsItems.map(n => `
-        <div class="news-item">
-          <div class="news-title">${n.title}</div>
-          <div class="news-meta">
-            <div class="news-severity-dot severity-${n.severity}"></div>
-            <span class="news-source">${n.source}</span>
-            <span class="news-time">${n.time}</span>
-          </div>
-        </div>
-      `).join('')}
+      ${signalsHtml}
     </div>
   `;
+}
+
+// ---- Data strip updater ----
+function updateDataStrip(ds) {
+  if (!ds) return;
+
+  function fmtChg(pct, label, up, down) {
+    const dir = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
+    const cls = pct > 0 ? 'change-up' : pct < 0 ? 'change-down' : 'change-neutral';
+    const sign = pct > 0 ? '+' : '';
+    return { text: `${dir} ${sign}${pct.toFixed(1)}% ${label}`, cls };
+  }
+
+  // PPI Construction Inputs
+  if (ds.ppiConstructionInputs) {
+    const el = document.getElementById('ds-ppi-inputs');
+    const chg = document.getElementById('ds-ppi-inputs-chg');
+    if (el && ds.ppiConstructionInputs.value) el.textContent = ds.ppiConstructionInputs.value.toFixed(1);
+    if (chg && ds.ppiConstructionInputs.changeYoY !== undefined) {
+      const { text, cls } = fmtChg(ds.ppiConstructionInputs.changeYoY, 'YoY');
+      chg.textContent = text; chg.className = `data-cell-change ${cls}`;
+    }
+  }
+
+  // PPI Steel
+  if (ds.ppiSteelMill) {
+    const el = document.getElementById('ds-ppi-steel');
+    const chg = document.getElementById('ds-ppi-steel-chg');
+    if (el && ds.ppiSteelMill.value) el.textContent = ds.ppiSteelMill.value.toFixed(1);
+    if (chg && ds.ppiSteelMill.changeYoY !== undefined) {
+      const { text, cls } = fmtChg(ds.ppiSteelMill.changeYoY, 'YoY');
+      chg.textContent = text; chg.className = `data-cell-change ${cls}`;
+    }
+  }
+
+  // PPI Concrete
+  if (ds.ppiReadyMixConcrete) {
+    const el = document.getElementById('ds-ppi-concrete');
+    const chg = document.getElementById('ds-ppi-concrete-chg');
+    if (el && ds.ppiReadyMixConcrete.value) el.textContent = ds.ppiReadyMixConcrete.value.toFixed(1);
+    if (chg && ds.ppiReadyMixConcrete.changeYoY !== undefined) {
+      const { text, cls } = fmtChg(ds.ppiReadyMixConcrete.changeYoY, 'YoY');
+      chg.textContent = text; chg.className = `data-cell-change ${cls}`;
+    }
+  }
+
+  // Construction Employment
+  if (ds.constructionEmployment) {
+    const el = document.getElementById('ds-employment');
+    const chg = document.getElementById('ds-employment-chg');
+    const valK = ds.constructionEmployment.valueThousands;
+    if (el && valK) el.textContent = valK >= 1000 ? `${(valK / 1000).toFixed(2)}M` : `${valK.toFixed(0)}k`;
+    if (chg && ds.constructionEmployment.changeMoM !== undefined) {
+      const pct = ds.constructionEmployment.changeMoM;
+      const dir = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
+      const cls = pct > 0 ? 'change-up' : pct < 0 ? 'change-down' : 'change-neutral';
+      const sign = pct > 0 ? '+' : '';
+      chg.textContent = `${dir} ${sign}${pct.toFixed(1)}% MoM`;
+      chg.className = `data-cell-change ${cls}`;
+    }
+  }
+
+  // Building Permits
+  if (ds.buildingPermits) {
+    const el = document.getElementById('ds-permits');
+    const chg = document.getElementById('ds-permits-chg');
+    const valK = ds.buildingPermits.valueThousands;
+    if (el && valK) el.textContent = valK >= 1000 ? `${(valK / 1000).toFixed(3)}M` : `${valK.toFixed(0)}k`;
+    if (chg && ds.buildingPermits.changeMoM !== undefined) {
+      const { text, cls } = fmtChg(ds.buildingPermits.changeMoM, 'MoM');
+      chg.textContent = text; chg.className = `data-cell-change ${cls}`;
+    }
+  }
+
+  // Fed Funds Rate
+  if (ds.fedFundsRate) {
+    const el = document.getElementById('ds-fedfunds');
+    const chg = document.getElementById('ds-fedfunds-chg');
+    if (el && ds.fedFundsRate.value) el.textContent = `${ds.fedFundsRate.value.toFixed(2)}%`;
+    if (chg) {
+      if (ds.fedFundsRate.unchanged) {
+        chg.textContent = '— Unchanged'; chg.className = 'data-cell-change change-neutral';
+      } else {
+        chg.textContent = 'Rate changed'; chg.className = 'data-cell-change change-up';
+      }
+    }
+  }
+}
+
+// ---- Live data loader ----
+async function loadLiveData() {
+  try {
+    const res = await fetch('/api/mpi-scores');
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    const json = await res.json();
+
+    if (!json.data || !Array.isArray(json.data) || json.data.length === 0) {
+      throw new Error('API returned empty data array');
+    }
+
+    // Apply live data
+    MPI_DATA = json.data;
+    isLiveData = true;
+    liveSignals = json.signals || [];
+
+    // Keep selection valid
+    if (!MPI_DATA.find(m => m.id === selectedId)) {
+      selectedId = MPI_DATA[0].id;
+    }
+
+    // Update data strip with live macro values
+    if (json.dataStrip) {
+      updateDataStrip(json.dataStrip);
+    }
+
+    // Re-render all panels
+    renderMPIList();
+    renderMapMarkers();
+    renderDetail(selectedId);
+
+    console.log(`[Construction Monitor] Live MPI data loaded — ${MPI_DATA.length} MSAs, ${liveSignals.length} signals`);
+
+  } catch (err) {
+    // On failure: keep whatever data is showing (demo or last live), log quietly
+    console.warn('[Construction Monitor] API fetch failed, using existing data:', err.message);
+    if (!isLiveData) {
+      // Still on demo — ensure demo is rendered
+      renderMPIList();
+      renderMapMarkers();
+      renderDetail(selectedId);
+    }
+  }
 }
 
 // ---- Selection handler ----
@@ -1371,28 +1526,19 @@ function updateClock() {
   document.getElementById('clock').textContent = `${h}:${m}:${s} EST`;
 }
 
-// ---- Simulate live MPI updates ----
-function simulateLiveUpdates() {
-  setInterval(() => {
-    const randomMSA = MPI_DATA[Math.floor(Math.random() * MPI_DATA.length)];
-    const nudge = (Math.random() - 0.5) * 2;
-    randomMSA.score = Math.min(100, Math.max(0, Math.round((randomMSA.score + nudge) * 10) / 10));
-    randomMSA.tier = randomMSA.score <= 30 ? 'favorable' :
-                     randomMSA.score <= 55 ? 'moderate' :
-                     randomMSA.score <= 75 ? 'elevated' : 'critical';
-    renderMPIList();
-    renderMapMarkers();
-    if (selectedId === randomMSA.id) renderDetail(selectedId);
-  }, 5000);
-}
-
 // ---- Init ----
+// 1. Render with demo data immediately (zero-latency start)
 renderMPIList();
 renderMapMarkers();
 renderDetail(selectedId);
 setInterval(updateClock, 1000);
 updateClock();
-simulateLiveUpdates();
+
+// 2. Attempt to load live data from API
+loadLiveData();
+
+// 3. Refresh live data every 5 minutes
+setInterval(loadLiveData, 5 * 60 * 1000);
 </script>
 </body>
 </html>
